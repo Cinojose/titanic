@@ -12,6 +12,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.externals import joblib
 from sklearn.model_selection import GridSearchCV
+import numpy as np
 
 """Function to update the age"""
 def age_impute(train,test):
@@ -29,9 +30,10 @@ def cabin_number(train,test):
         #train['Cabin_lettter'] =train['Cabin'].apply(lambda x: x[0])
     return train,test
 
-def name_title(test,train):
+def name_title(train,test):
     for i in [train,test]:
              i['Name_title'] = i['Name'].apply(lambda x: x.split(',')[1]).apply(lambda x: x.split()[0])
+             pd.concat((i, pd.get_dummies(i['Name_title'])),axis=1)
     return train,test
 
 def drop(train, test, cols = ['Ticket', 'SibSp', 'Parch']):
@@ -40,19 +42,33 @@ def drop(train, test, cols = ['Ticket', 'SibSp', 'Parch']):
             del i[z]
     return train, test
 
-def trim_sex(test,train):
+def famsize(train,test):
+    for i in [train,test]:
+        #i['Sibsp'] = i['Sibsp'].apply(lambda x: x)
+        i['famsize'] =  np.where((i['SibSp']+i['Parch']) == 0 , 1,
+                           np.where((i['SibSp']+i['Parch']) <= 3, 2, 3))
+        del i['SibSp']
+        del i['Parch']
+    return train,test
+
+def trim_sex(train,test):
     for i in [train,test]:
         i['Sex'] = i['Sex'].apply(lambda x: x[0])
-    return train,test             
+        i['sex_num'] = i['Sex'].apply(lambda x: 1 if x =='m' else 0)
+        del i['Sex']
+    return train,test   
+          
 
 train = pd.read_csv(os.path.join("data","train.csv"))
 test = pd.read_csv(os.path.join("data","test.csv"))
 train,test = age_impute(train,test)
+train,test = famsize(train,test)
 #train,test = cabin_number(train,test)
-#train,test  = name_title(train,test)
-#train,test = trim_sex(train,test)
+train,test  = name_title(train,test)
+train,test = trim_sex(train,test)
 #train,test = drop(train,test,cols=['Ticket','Name','Parch','Cabin'])
-#333333print train
+print train
+######3333333print train['Name_title']
 
 rf = RandomForestClassifier(criterion='entropy', 
                              n_estimators=50,
@@ -65,7 +81,7 @@ rf = RandomForestClassifier(criterion='entropy',
 #print train.iloc[:,2:]
 y = train.pop('Survived')
 numeric_variables = list(train.dtypes[train.dtypes != "object"].index)
-print y
+##print y
 rf.fit(train[numeric_variables], y)
 print "%.4f" % rf.oob_score_ 
 """
