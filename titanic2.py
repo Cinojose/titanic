@@ -21,6 +21,15 @@ def age_impute(train,test):
         i['Age'] = i['Age'].apply(lambda x: int(mean) if x !=x else x)
         #print   train['Age']
     return train,test
+
+def embark_impute(train,test):
+    for i in (train,test):
+        i['Embarked'] = i['Embarked'].apply(lambda x: 'P' if x!=x else x)
+        i['Embarked'] =  np.where((i['Embarked']) == "S" , 1,
+                           np.where((i["Embarked"]) == "C", 2,
+                                    np.where((i['Embarked'])=="P",3,4)))
+    return train,test
+    
               
 """Function to update th cabin number """
 def cabin_number(train,test):
@@ -30,10 +39,12 @@ def cabin_number(train,test):
         #train['Cabin_lettter'] =train['Cabin'].apply(lambda x: x[0])
     return train,test
 
+""" TODO: fix the bug """
 def name_title(train,test):
     for i in [train,test]:
              i['Name_title'] = i['Name'].apply(lambda x: x.split(',')[1]).apply(lambda x: x.split()[0])
-             pd.concat((i, pd.get_dummies(i['Name_title'])),axis=1)
+    pd.concat((test, pd.get_dummies(test['Name_title'])),axis = 1)
+    pd.concat((train, pd.get_dummies(train['Name_title'])),axis = 1)
     return train,test
 
 def drop(train, test, cols = ['Ticket', 'SibSp', 'Parch']):
@@ -56,7 +67,16 @@ def trim_sex(train,test):
         i['Sex'] = i['Sex'].apply(lambda x: x[0])
         i['sex_num'] = i['Sex'].apply(lambda x: 1 if x =='m' else 0)
         del i['Sex']
-    return train,test   
+    return train,test  
+
+"""TODO : continue to catgorize """
+def do_fare(train,test):
+    for i in [train,test]:
+        mean = i['Fare'].mean()
+        i['Fare'] = i['Fare'].apply(lambda x: mean if x !=x else x)        
+    train['Fare_num'] = pd.cut(train['Fare'],4,labels=[0,1,2,3])
+    test['Fare_num'] = pd.cut(test['Fare'],4,labels=[0,1,2,3])
+    return train,test
           
 
 train = pd.read_csv(os.path.join("data","train.csv"))
@@ -67,7 +87,9 @@ train,test = famsize(train,test)
 train,test  = name_title(train,test)
 train,test = trim_sex(train,test)
 #train,test = drop(train,test,cols=['Ticket','Name','Parch','Cabin'])
-print train
+train,test = embark_impute(train,test)
+train,test = do_fare(train,test)
+#print train['Fare']
 ######3333333print train['Name_title']
 
 rf = RandomForestClassifier(criterion='entropy', 
