@@ -13,6 +13,8 @@ from sklearn.model_selection import cross_val_score
 from sklearn.externals import joblib
 from sklearn.model_selection import GridSearchCV
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 """Function to update the age"""
 def age_impute(train,test):
@@ -41,10 +43,12 @@ def cabin_number(train,test):
 
 """ TODO: fix the bug """
 def name_title(train,test):
+    name_titles = ["Miss.","Mr.","Mrs.","Ms.","Col.","Dr.","Master."]
     for i in [train,test]:
-             i['Name_title'] = i['Name'].apply(lambda x: x.split(',')[1]).apply(lambda x: x.split()[0])
-    pd.concat((test, pd.get_dummies(test['Name_title'])),axis = 1)
-    pd.concat((train, pd.get_dummies(train['Name_title'])),axis = 1)
+             name_title = i['Name'].apply(lambda x: x.split(',')[1]).apply(lambda x: "Mr." if x.split()[0] not in name_titles else x.split()[0])
+             i['Name_title'] = name_title
+    test = pd.concat([test,pd.get_dummies(test['Name_title'], prefix="Name_title")],axis=1)
+    train = pd.concat([train,pd.get_dummies(train['Name_title'], prefix="Name_title")],axis=1)
     return train,test
 
 def drop(train, test, cols = ['Ticket', 'SibSp', 'Parch']):
@@ -77,7 +81,11 @@ def do_fare(train,test):
     train['Fare_num'] = pd.cut(train['Fare'],4,labels=[0,1,2,3])
     test['Fare_num'] = pd.cut(test['Fare'],4,labels=[0,1,2,3])
     return train,test
-          
+
+def do_visualize(train):
+    avg_survived = train[['Name_title','Survived']].groupby(['Name_title'], as_index=False).mean()
+    fig,axis1= plt.subplots(1,1,figsize=(18,4))
+    sns.barplot(x="Name_title",y="Survived",data=avg_survived)
 
 train = pd.read_csv(os.path.join("data","train.csv"))
 test = pd.read_csv(os.path.join("data","test.csv"))
@@ -89,11 +97,24 @@ train,test = trim_sex(train,test)
 #train,test = drop(train,test,cols=['Ticket','Name','Parch','Cabin'])
 train,test = embark_impute(train,test)
 train,test = do_fare(train,test)
-#print train['Fare']
-######3333333print train['Name_title']
+do_visualize(train)
+#print train['Fare
+print train.groupby(['Name_title'])
+avg_survived = train[['Name_title','Survived']].groupby(['Name_title'], as_index=False).mean()
+print avg_survived
 
+"""
+Criterion
+n_estimators
+min_samples_split
+min_samples_leaf
+max_features
+oob-score
+random_stttttttate
+n_jobs
+"""
 rf = RandomForestClassifier(criterion='entropy', 
-                             n_estimators=50,
+                             n_estimators=400,
                              min_samples_split=16,
                              min_samples_leaf=1,
                              max_features='auto',
@@ -101,12 +122,16 @@ rf = RandomForestClassifier(criterion='entropy',
                              random_state=1,
                              n_jobs=-1)
 #print train.iloc[:,2:]
+#print train[['Name_title','Survived']].groupby(['Name_title'], as_index=False).mean()
 y = train.pop('Survived')
 numeric_variables = list(train.dtypes[train.dtypes != "object"].index)
 ##print y
 rf.fit(train[numeric_variables], y)
 print "%.4f" % rf.oob_score_ 
-"""
+#sns
+
+
+
 rf = RandomForestClassifier(max_features='auto',
                                 oob_score=True,
                                 random_state=1,
@@ -123,7 +148,7 @@ gs = GridSearchCV(estimator=rf,
                   cv=3,
                   n_jobs=-1)
 
-gs = gs.fit(train[numeric_variables], train.iloc[:, 1])
+gs = gs.fit(train[numeric_variables], y)
 
 
 # #### Inspect best parameters
@@ -132,16 +157,16 @@ gs = gs.fit(train[numeric_variables], train.iloc[:, 1])
 print(gs.best_score_)
 print(gs.best_params_)
 
-"""
-print train.dtypes.index
-print test.dtypes.index
+
+#print train.dtypes.index
+##33333333print test.dtypes.index
 numeric_variables_test= list(test.dtypes[test.dtypes != "object"].index)
 test['Fare'].fillna(train['Fare'].mean(), inplace = True)
 #print test
 predictions = rf.predict(test[numeric_variables_test])
 predictions = pd.DataFrame(predictions, columns=['Survived'])
 predictions = pd.concat((test.iloc[:, 0], predictions), axis = 1)
-predictions.to_csv(os.path.join('data', 'y_test51.csv'), sep=",", index = False)
+predictions.to_csv(os.path.join('data', 'titanic_result.csv'), sep=",", index = False)
 
 
 #
